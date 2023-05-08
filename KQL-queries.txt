@@ -1,0 +1,31 @@
+//Azure VM has been started
+AzureActivity
+| where TimeGenerated > ago(1d)
+| where OperationNameValue has "Microsoft.Compute/virtualMachines/Start/action"
+and ActivityStatusValue has "Start"
+
+//Azure VM has been deleted
+AzureActivity
+| where TimeGenerated >= ago(1d)
+| where OperationNameValue has "Microsoft.Compute/virtualMachines/delete"
+and ActivitySubstatusValue has "Accepted"
+
+//Azure VM has been created
+AzureActivity
+| where TimeGenerated >= ago(1d)
+| where OperationNameValue has "Microsoft.Compute/virtualMachines/write"
+and ActivityStatusValue has "Start"
+
+//Azure VM has not sent a heartBeat in over 5 minutes
+Heartbeat
+| where TimeGenerated > ago(24h)
+| summarize LastCall = max(TimeGenerated) by Computer, _ResourceId
+| where LastCall < ago(5m)
+
+//Find all virtual disks that are unattached to a VM
+Resources
+| where type has "microsoft.compute/disks"
+| extend diskState = tostring(properties.diskState)
+| where managedBy == ""
+or diskState == 'Unattached'
+| project id, diskState, resourceGroup, location, subscriptionId
